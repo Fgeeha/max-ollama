@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="1200" height="420" viewBox="0 0 1200 420"
+     role="img" aria-labelledby="hero-title hero-desc">
+  <title id="hero-title">max-ollama</title>
+  <desc id="hero-desc">Чат с локальными моделями Ollama прямо в мессенджере MAX. Справа окно чата: вопрос пользователя, ответ бота, который дописывается по мере генерации, и кнопки выбора модели.</desc>
+
+  <defs>
+    <style>
+      .sans { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif; }
+      .mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="420" rx="26" fill="#0B0D12"/>
+  <rect x="0.75" y="0.75" width="1198.5" height="418.5" rx="25.25" fill="none" stroke="#1B2130" stroke-width="1.5"/>
+
+  <!-- Title block -->
+  <g id="title-block">
+    <!-- motif: streaming cursor, the mechanic this bot is built around -->
+    <rect x="56" y="76" width="10" height="24" rx="2" fill="#8B5CF6"/>
+    <text class="mono" x="78" y="96" font-size="18" letter-spacing="1.6" fill="#7B8798">MAX BOT API · OLLAMA · SELF-HOSTED</text>
+
+    <text class="sans" x="56" y="184" font-size="76" font-weight="700" fill="#E6EAF2">max-ollama</text>
+
+    <text class="sans" x="56" y="238" font-size="25" fill="#B3BCCB">Чат с локальными моделями Ollama прямо</text>
+    <text class="sans" x="56" y="272" font-size="25" fill="#B3BCCB">в мессенджере MAX — на вашем сервере.</text>
+
+    <line x1="56" y1="316" x2="600" y2="316" stroke="#1B2130" stroke-width="1.5"/>
+
+    <text class="mono" x="56" y="350" font-size="18" fill="#7B8798">Python 3.12</text>
+    <text class="mono" x="196" y="350" font-size="18" fill="#3A4354">/</text>
+    <text class="mono" x="220" y="350" font-size="18" fill="#7B8798">SQLite · Postgres</text>
+    <text class="mono" x="424" y="350" font-size="18" fill="#3A4354">/</text>
+    <text class="mono" x="448" y="350" font-size="18" fill="#7B8798">Docker</text>
+  </g>
+
+  <!-- Chat window: the product itself -->
+  <g id="chat-proof">
+    <rect x="656" y="44" width="488" height="336" rx="18" fill="#161B25" stroke="#262E3C" stroke-width="1.5"/>
+
+    <!-- window header -->
+    <circle cx="684" cy="76" r="14" fill="#8B5CF6"/>
+    <rect x="681" y="69" width="6" height="14" rx="1.5" fill="#0B0D12"/>
+    <text class="sans" x="710" y="83" font-size="20" font-weight="600" fill="#E6EAF2">max-ollama</text>
+    <circle cx="1044" cy="76" r="5" fill="#22D3A6"/>
+    <text class="mono" x="1058" y="82" font-size="16" fill="#7B8798">online</text>
+    <line x1="656" y1="100" x2="1144" y2="100" stroke="#262E3C" stroke-width="1.5"/>
+
+    <!-- user message -->
+    <rect x="920" y="120" width="200" height="48" rx="14" fill="#8B5CF6"/>
+    <text class="sans" x="940" y="150" font-size="21" fill="#FFFFFF">Что такое RAG?</text>
+
+    <!-- bot answer, still streaming -->
+    <rect x="680" y="184" width="340" height="120" rx="14" fill="#1E2532" stroke="#2A3342" stroke-width="1.5"/>
+    <text class="sans" x="700" y="222" font-size="21" fill="#D3DAE6">RAG — это поиск фактов</text>
+    <text class="sans" x="700" y="252" font-size="21" fill="#D3DAE6">во внешней базе перед</text>
+    <text class="sans" x="700" y="282" font-size="21" fill="#D3DAE6">ответом модели</text>
+    <rect x="856" y="266" width="10" height="21" rx="2" fill="#8B5CF6"/>
+
+    <!-- inline model picker -->
+    <rect x="680" y="336" width="152" height="32" rx="16" fill="#241C46" stroke="#8B5CF6" stroke-width="1.5"/>
+    <text class="mono" x="698" y="357" font-size="17" fill="#C4B5FD">llama3:8b</text>
+    <rect x="844" y="336" width="164" height="32" rx="16" fill="none" stroke="#2A3342" stroke-width="1.5"/>
+    <text class="mono" x="862" y="357" font-size="17" fill="#7B8798">qwen2.5:14b</text>
+  </g>
+</svg>

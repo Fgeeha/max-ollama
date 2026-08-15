@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="1200" height="330" viewBox="0 0 1200 330"
+     role="img" aria-labelledby="wf-title wf-desc">
+  <title id="wf-title">Путь сообщения</title>
+  <desc id="wf-desc">Сообщение из MAX проходит проверку доступа и частоты, собирает контекст диалога из базы, уходит в Ollama и возвращается потоком: ответ дописывается в уже отправленное сообщение.</desc>
+
+  <defs>
+    <style>
+      .sans { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif; }
+      .mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; }
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#3A4354"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="330" rx="26" fill="#0B0D12"/>
+  <rect x="0.75" y="0.75" width="1198.5" height="328.5" rx="25.25" fill="none" stroke="#1B2130" stroke-width="1.5"/>
+
+  <rect x="56" y="44" width="10" height="24" rx="2" fill="#8B5CF6"/>
+  <text class="mono" x="78" y="64" font-size="18" letter-spacing="1.6" fill="#7B8798">ПУТЬ ОДНОГО СООБЩЕНИЯ</text>
+
+  <!-- 1. MAX -->
+  <g>
+    <rect x="56" y="104" width="188" height="104" rx="16" fill="#161B25" stroke="#262E3C" stroke-width="1.5"/>
+    <text class="sans" x="80" y="146" font-size="23" font-weight="600" fill="#E6EAF2">Мессенджер</text>
+    <text class="sans" x="80" y="176" font-size="23" font-weight="600" fill="#E6EAF2">MAX</text>
+    <text class="mono" x="80" y="242" font-size="18" fill="#7B8798">long polling</text>
+  </g>
+  <line x1="252" y1="156" x2="290" y2="156" stroke="#3A4354" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- 2. Доступ -->
+  <g>
+    <rect x="298" y="104" width="188" height="104" rx="16" fill="#161B25" stroke="#262E3C" stroke-width="1.5"/>
+    <text class="sans" x="322" y="146" font-size="23" font-weight="600" fill="#E6EAF2">Доступ</text>
+    <text class="sans" x="322" y="176" font-size="23" font-weight="600" fill="#E6EAF2">и лимиты</text>
+    <text class="mono" x="322" y="242" font-size="18" fill="#7B8798">whitelist</text>
+  </g>
+  <line x1="494" y1="156" x2="532" y2="156" stroke="#3A4354" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- 3. Контекст -->
+  <g>
+    <rect x="540" y="104" width="188" height="104" rx="16" fill="#161B25" stroke="#262E3C" stroke-width="1.5"/>
+    <text class="sans" x="564" y="146" font-size="23" font-weight="600" fill="#E6EAF2">Контекст</text>
+    <text class="sans" x="564" y="176" font-size="23" font-weight="600" fill="#E6EAF2">диалога</text>
+    <text class="mono" x="564" y="242" font-size="18" fill="#7B8798">бюджет токенов</text>
+  </g>
+  <line x1="736" y1="156" x2="774" y2="156" stroke="#3A4354" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- 4. Ollama -->
+  <g>
+    <rect x="782" y="104" width="188" height="104" rx="16" fill="#1A1530" stroke="#8B5CF6" stroke-width="1.5"/>
+    <text class="sans" x="806" y="146" font-size="23" font-weight="600" fill="#E6EAF2">Ollama</text>
+    <text class="sans" x="806" y="176" font-size="21" font-weight="600" fill="#C4B5FD">локально</text>
+    <text class="mono" x="806" y="242" font-size="18" fill="#8B5CF6">/api/chat · stream</text>
+  </g>
+  <line x1="978" y1="156" x2="1016" y2="156" stroke="#3A4354" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- 5. Ответ дописывается -->
+  <g>
+    <rect x="1024" y="104" width="120" height="104" rx="16" fill="#161B25" stroke="#262E3C" stroke-width="1.5"/>
+    <text class="sans" x="1048" y="146" font-size="23" font-weight="600" fill="#E6EAF2">Ответ</text>
+    <rect x="1048" y="164" width="52" height="14" rx="3" fill="#2A3342"/>
+    <rect x="1048" y="184" width="36" height="14" rx="3" fill="#2A3342"/>
+    <rect x="1090" y="184" width="9" height="14" rx="2" fill="#8B5CF6"/>
+    <text class="mono" x="1024" y="242" font-size="18" fill="#7B8798">дописывается</text>
+  </g>
+
+  <line x1="56" y1="278" x2="1144" y2="278" stroke="#1B2130" stroke-width="1.5"/>
+  <text class="sans" x="56" y="308" font-size="20" fill="#7B8798">Веса модели и переписка остаются на вашем сервере — наружу уходит только запрос в мессенджер.</text>
+</svg>
