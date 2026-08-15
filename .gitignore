@@ -221,3 +221,11 @@ __marimo__/
 .codex/
 # Claude Flow runtime data
 # Environment variables
+
+# Локальная обвязка агентских инструментов: состояние машины разработчика,
+# в репозитории ей не место
+.claude/
+.claude-flow/
+.agents/
+.swarm/
+.mcp.json
