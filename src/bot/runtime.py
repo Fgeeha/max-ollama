@@ -10,10 +10,15 @@ from bot.config import settings
 from bot.utils.ollama import OllamaClient
 
 bot = Bot(token=settings.MAX_BOT_TOKEN)
-dp = Dispatcher()
+
+# use_create_task: without it the dispatcher awaits each update in turn, so one
+# generation blocks every other chat and the polling loop itself.
+dp = Dispatcher(use_create_task=True)
+
 ollama_client = OllamaClient(
     base_url=settings.OLLAMA_HOST,
     timeout=settings.OLLAMA_TIMEOUT,
+    stream_read_timeout=settings.OLLAMA_STREAM_READ_TIMEOUT,
 )
 
 __all__ = ["bot", "dp", "ollama_client"]

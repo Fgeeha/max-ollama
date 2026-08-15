@@ -26,7 +26,15 @@ class Settings(BaseSettings):
     )
     OLLAMA_TIMEOUT: int = Field(
         default=60,
-        description="Ollama API timeout in seconds"
+        description="Ollama API timeout in seconds (non-streaming requests)"
+    )
+    OLLAMA_STREAM_READ_TIMEOUT: int = Field(
+        default=120,
+        description="Max seconds between two streamed chunks before giving up"
+    )
+    OLLAMA_GENERATION_TIMEOUT: int = Field(
+        default=600,
+        description="Hard limit for a single generation in seconds"
     )
 
     # Database

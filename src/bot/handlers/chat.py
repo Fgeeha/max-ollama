@@ -19,7 +19,7 @@ from bot.decorators import authorized_only, rate_limited
 from bot.runtime import bot, dp, ollama_client
 from bot.utils.context import ConversationContext, normalize_chat_messages
 from bot.utils.events import answer, answer_html, event_chat_id, event_user_id
-from bot.utils.ollama import OllamaModelNotFoundError
+from bot.utils.ollama import OllamaModelNotFoundError, OllamaTimeoutError
 
 logger = structlog.get_logger()
 
@@ -30,6 +30,11 @@ IMAGE_PLACEHOLDER_PREFIX = "[image]"
 STREAM_FIRST_CHUNK_CHARS = 50
 STREAM_EDIT_STEP_CHARS = 100
 STREAM_EDIT_MIN_INTERVAL = 1.0
+
+# Updates are now handled concurrently, so one user can fire off several
+# messages at once. Two generations for the same user would interleave their
+# writes and scramble the stored conversation order, so only one runs at a time.
+_generating: set[int] = set()
 
 
 async def _process_chat_interaction(
@@ -48,6 +53,13 @@ async def _process_chat_interaction(
 
     if not user_text:
         await answer(event, "❌ Cannot send an empty message.")
+        return
+
+    if user_id in _generating:
+        await answer(
+            event,
+            "⏳ Я ещё отвечаю на предыдущее сообщение. Дождитесь ответа."
+        )
         return
 
     # Get user's selected model
@@ -77,6 +89,7 @@ async def _process_chat_interaction(
         )
         return
 
+    _generating.add(user_id)
     try:
         # Get conversation context
         conv_context = ConversationContext(
@@ -218,18 +231,22 @@ async def _process_chat_interaction(
             f"❌ Model '{model_name}' not found.\n"
             "Please use /models to select an available model."
         )
-    except TimeoutError:
+    except (OllamaTimeoutError, TimeoutError):
+        logger.warning("Generation timed out", user_id=user_id, model=model_name)
         await answer(
             event,
-            "⏱️ Request timed out. Please try again with a shorter message or different model."
+            "⏱️ Модель слишком долго не отвечает. Попробуйте ещё раз или выберите"
+            " модель полегче через /models."
         )
-    except Exception as e:
-        logger.error("Chat error", user_id=user_id, model=model_name, error=str(e))
+    except Exception:
+        logger.exception("Chat error", user_id=user_id, model=model_name)
         await answer(
             event,
             "❌ An error occurred while generating the response.\n"
             "Please try again later or contact the administrator."
         )
+    finally:
+        _generating.discard(user_id)
 
 
 def _sended_message_id(sended: Any) -> str | None:

@@ -30,13 +30,34 @@ class OllamaModelNotFoundError(OllamaError):
     pass
 
 
+class OllamaTimeoutError(OllamaError):
+    """Raised when Ollama stops producing output for too long."""
+    pass
+
+
 class OllamaClient:
     """Client for interacting with Ollama API."""
 
-    def __init__(self, base_url: str = "http://localhost:11434", timeout: int = 60):
-        """Initialize Ollama client."""
+    def __init__(
+        self,
+        base_url: str = "http://localhost:11434",
+        timeout: int = 60,
+        stream_read_timeout: int = 120,
+        generation_timeout: int = 600,
+    ):
+        """Initialize Ollama client.
+
+        Args:
+            base_url: Ollama API base URL.
+            timeout: Timeout for regular (non-streaming) requests, seconds.
+            stream_read_timeout: Maximum gap between two streamed chunks before
+                the generation is considered stalled, seconds.
+            generation_timeout: Hard limit on a single generation, seconds.
+        """
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
+        self.stream_read_timeout = stream_read_timeout
+        self.generation_timeout = generation_timeout
         self.client = httpx.AsyncClient(
             base_url=self.base_url,
             timeout=httpx.Timeout(timeout),
@@ -268,13 +289,25 @@ class OllamaClient:
                     "POST",
                     "/api/chat",
                     json=payload,
-                    timeout=httpx.Timeout(None),  # без таймаута для стрима
+                    # No overall deadline (generation legitimately takes minutes),
+                    # but a read timeout between chunks: a stalled Ollama must not
+                    # hold the handler forever.
+                    timeout=httpx.Timeout(
+                        None, connect=self.timeout, read=self.stream_read_timeout
+                    ),
             ) as response:
                 response.raise_for_status()
 
                 async for line in response.aiter_lines():
                     if not line:
                         continue
+
+                    elapsed = time.time() - start_time
+                    if elapsed > self.generation_timeout:
+                        raise OllamaTimeoutError(
+                            f"Generation exceeded {self.generation_timeout}s"
+                        )
+
                     import json
                     data = json.loads(line)
 
@@ -284,6 +317,15 @@ class OllamaClient:
 
                     yield data
 
+        except httpx.TimeoutException as e:
+            logger.warning(
+                "Stream chat stalled",
+                read_timeout=self.stream_read_timeout,
+                error=str(e),
+            )
+            raise OllamaTimeoutError(
+                f"Ollama produced no output for {self.stream_read_timeout}s"
+            ) from e
         except httpx.HTTPError as e:
             logger.error("Stream chat failed", error=str(e))
             raise OllamaError(f"Stream chat failed: {e}") from e
