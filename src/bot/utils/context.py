@@ -146,7 +146,6 @@ class ConversationContext:
                 marker.value = str(last_id or 0)
             else:
                 session.add(Setting(key=self._marker_key, value=str(last_id or 0)))
-            await session.commit()
 
         self.forget(self.user_id)
         logger.info("Context reset", user_id=self.user_id, reset_after_id=last_id or 0)

@@ -62,7 +62,12 @@ async def close_database() -> None:
 
 @asynccontextmanager
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
-    """Get database session."""
+    """Get a database session that commits on a clean exit.
+
+    Leaving the block commits, and any exception rolls back. Callers therefore
+    do not need a trailing ``session.commit()``; an explicit commit is only
+    meaningful mid-block, to flush before doing more work in the same session.
+    """
     if not async_session_factory:
         raise RuntimeError("Database not initialized. Call init_database() first.")
 

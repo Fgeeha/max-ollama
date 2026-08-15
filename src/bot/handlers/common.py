@@ -65,7 +65,6 @@ async def start(event: MessageCreated) -> None:
             if is_admin:
                 db_user.is_admin = True
                 db_user.is_active = True
-            await session.commit()
 
     # Send appropriate welcome message
     if is_admin:

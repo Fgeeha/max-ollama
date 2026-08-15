@@ -1,7 +1,7 @@
 """Decorators for bot handlers."""
 import functools
 from collections.abc import Callable
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import structlog
 from sqlalchemy import select
@@ -9,6 +9,7 @@ from sqlalchemy import select
 from bot.config import settings
 from bot.database import RateLimit, User, get_session
 from bot.utils.events import AnyEvent, answer, answer_html, event_text, event_user_id
+from bot.utils.time import utc_now
 
 logger = structlog.get_logger()
 
@@ -96,7 +97,7 @@ def rate_limited(func: Callable) -> Callable:
             )
             rate_limit = result.scalar_one_or_none()
 
-            current_time = datetime.utcnow()
+            current_time = utc_now()
 
             if not rate_limit:
                 # Create new rate limit record

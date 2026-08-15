@@ -123,7 +123,6 @@ async def switch_model(event: MessageCreated, args: list[str] | None = None) -> 
             return
 
         user.selected_model = model_name
-        await session.commit()
 
     await answer_html(event, f"✅ Switched to model: <b>{model_name}</b>")
 
@@ -160,7 +159,6 @@ async def handle_model_selection(
         # Update model
         old_model = user.selected_model
         user.selected_model = model_name
-        await session.commit()
 
     # Update the message and drop the keyboard
     await event.edit(

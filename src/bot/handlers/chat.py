@@ -1,7 +1,6 @@
 """Chat handler for conversations with Ollama models."""
 import base64
 import time
-from datetime import datetime
 from html import escape
 from typing import Any
 
@@ -21,6 +20,7 @@ from bot.utils.context import ConversationContext, normalize_chat_messages
 from bot.utils.events import answer, answer_html, event_chat_id, event_user_id
 from bot.utils.ollama import OllamaModelNotFoundError, OllamaTimeoutError
 from bot.utils.text import MAX_MESSAGE_CHARS, split_message
+from bot.utils.time import utc_now
 
 logger = structlog.get_logger()
 
@@ -121,7 +121,6 @@ async def _process_chat_interaction(
                 message_role="user",
                 message_content=stored_user_message,
             ))
-            await session.commit()
 
         # Generate response
         start_time = time.time()
@@ -195,7 +194,7 @@ async def _process_chat_interaction(
                 ))
 
                 # Update usage stats
-                today = datetime.utcnow().date()
+                today = utc_now().date()
 
                 result = await session.execute(
                     select(ModelUsage).where(
@@ -220,7 +219,6 @@ async def _process_chat_interaction(
                         date=today,
                     ))
 
-                await session.commit()
 
             # Update context
             await conv_context.add_message("assistant", response_text)
@@ -366,7 +364,6 @@ async def regenerate_response(event: MessageCreated) -> None:
 
         if last_assistant_msg:
             await session.delete(last_assistant_msg)
-            await session.commit()
 
     await answer(event, "🔄 Regenerating response...")
 

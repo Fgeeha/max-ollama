@@ -1,6 +1,6 @@
 """Admin command handlers."""
 import asyncio
-from datetime import datetime, timedelta
+from datetime import timedelta
 from html import escape
 
 import structlog
@@ -16,6 +16,7 @@ from bot.runtime import bot, dp, ollama_client
 from bot.utils.context import ConversationContext
 from bot.utils.events import answer, answer_html, event_user_id
 from bot.utils.runtime_settings import TEST_MODE_KEY, set_flag
+from bot.utils.time import utc_now
 
 logger = structlog.get_logger()
 
@@ -212,7 +213,7 @@ async def show_stats(event: MessageCreated) -> None:
         active_users = user_count.scalar()
 
         # Get conversation stats for last 24 hours
-        yesterday = datetime.utcnow() - timedelta(days=1)
+        yesterday = utc_now() - timedelta(days=1)
         since_day = yesterday.date()
         conv_stats = await session.execute(
             select(
@@ -298,7 +299,6 @@ async def clear_history(event: MessageCreated, args: list[str] | None = None) ->
         result = await session.execute(
             Conversation.__table__.delete().where(Conversation.user_id == user_id)
         )
-        await session.commit()
 
     ConversationContext.forget(user_id)
 

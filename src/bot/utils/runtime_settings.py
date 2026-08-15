@@ -33,7 +33,6 @@ async def set_flag(key: str, value: bool) -> None:
             setting.value = str(value)
         else:
             session.add(Setting(key=key, value=str(value)))
-        await session.commit()
 
 
 async def load_into_settings() -> None:
