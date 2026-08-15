@@ -11,8 +11,14 @@ from bot.database.connection import to_async_url
 from bot.database.models import Base
 
 config = context.config
-if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+
+# Only set up alembic's own logging when run from the CLI. Embedded in the bot
+# the application has already configured structured logging, and fileConfig
+# would take the root logger over and reformat every later record.
+if config.config_file_name is not None and config.attributes.get(
+    "configure_logger", True
+):
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 config.set_main_option("sqlalchemy.url", to_async_url(settings.DATABASE_URL))
 

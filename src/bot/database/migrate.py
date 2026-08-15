@@ -25,6 +25,8 @@ ALEMBIC_INI = PROJECT_ROOT / "alembic.ini"
 def _alembic_config() -> Config:
     config = Config(str(ALEMBIC_INI))
     config.set_main_option("script_location", str(PROJECT_ROOT / "migrations"))
+    # The bot configures logging itself; see migrations/env.py.
+    config.attributes["configure_logger"] = False
     return config
 
 
