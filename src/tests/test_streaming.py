@@ -101,7 +101,7 @@ async def test_second_generation_for_same_user_is_refused(monkeypatch):
     event.message.sender.user_id = 777
     event.get_ids.return_value = (1, 777)
 
-    chat._generating.add(777)
+    chat._generating[777] = None
     try:
         await chat._process_chat_interaction(
             event,
@@ -109,7 +109,56 @@ async def test_second_generation_for_same_user_is_refused(monkeypatch):
             payload_content="привет",
         )
     finally:
-        chat._generating.discard(777)
+        chat._generating.pop(777, None)
 
     assert len(replies) == 1
     assert "ещё отвечаю" in replies[0]
+
+
+@pytest.mark.asyncio
+async def test_keep_alive_and_options_reach_ollama(client, monkeypatch):
+    """Operator settings must actually appear in the request payload."""
+    client.keep_alive = "10m"
+    client.options = {"temperature": 0.3, "num_ctx": 8192}
+    captured = {}
+
+    def fake_stream(*args, **kwargs):
+        captured.update(kwargs.get("json", {}))
+        return _FakeStream(['{"message":{"content":"ok"},"done":true}'])
+
+    monkeypatch.setattr(client.client, "stream", fake_stream)
+
+    async for _ in client.chat_stream("m", [{"role": "user", "content": "hi"}]):
+        pass
+
+    assert captured["keep_alive"] == "10m"
+    assert captured["options"] == {"temperature": 0.3, "num_ctx": 8192}
+
+
+@pytest.mark.asyncio
+async def test_unset_options_are_not_sent(client, monkeypatch):
+    """With nothing configured, the model's own defaults apply."""
+    captured = {}
+
+    def fake_stream(*args, **kwargs):
+        captured.update(kwargs.get("json", {}))
+        return _FakeStream(['{"message":{"content":"ok"},"done":true}'])
+
+    monkeypatch.setattr(client.client, "stream", fake_stream)
+
+    async for _ in client.chat_stream("m", [{"role": "user", "content": "hi"}]):
+        pass
+
+    assert "options" not in captured
+    assert "keep_alive" not in captured
+
+
+def test_runtime_passes_every_configured_limit():
+    """Guard against a setting being declared but never wired to the client."""
+    from bot.config import settings
+    from bot.runtime import ollama_client
+
+    assert ollama_client.timeout == settings.OLLAMA_TIMEOUT
+    assert ollama_client.stream_read_timeout == settings.OLLAMA_STREAM_READ_TIMEOUT
+    assert ollama_client.generation_timeout == settings.OLLAMA_GENERATION_TIMEOUT
+    assert ollama_client.keep_alive == settings.OLLAMA_KEEP_ALIVE

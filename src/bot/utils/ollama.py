@@ -44,6 +44,8 @@ class OllamaClient:
         timeout: int = 60,
         stream_read_timeout: int = 120,
         generation_timeout: int = 600,
+        keep_alive: str | None = None,
+        options: dict[str, Any] | None = None,
     ):
         """Initialize Ollama client.
 
@@ -53,11 +55,17 @@ class OllamaClient:
             stream_read_timeout: Maximum gap between two streamed chunks before
                 the generation is considered stalled, seconds.
             generation_timeout: Hard limit on a single generation, seconds.
+            keep_alive: How long Ollama keeps the model in memory after a
+                request; avoids reloading it before every answer.
+            options: Generation options passed through to Ollama
+                (temperature, num_ctx, ...).
         """
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self.stream_read_timeout = stream_read_timeout
         self.generation_timeout = generation_timeout
+        self.keep_alive = keep_alive
+        self.options = options or {}
         self.client = httpx.AsyncClient(
             base_url=self.base_url,
             timeout=httpx.Timeout(timeout),
@@ -138,12 +146,16 @@ class OllamaClient:
         if not await self.model_exists(model):
             raise OllamaModelNotFoundError(f"Model '{model}' not found")
 
-        payload = {
+        payload: dict[str, Any] = {
             "model": model,
             "messages": messages,
             "stream": True,
             **kwargs,
         }
+        if self.keep_alive:
+            payload.setdefault("keep_alive", self.keep_alive)
+        if self.options:
+            payload.setdefault("options", self.options)
 
         start_time = time.time()
         async for chunk in self._chat_stream(payload, start_time):
