@@ -11,7 +11,7 @@ from maxapi.enums.attachment import AttachmentType
 from maxapi.enums.sender_action import SenderAction
 from maxapi.filters.command import Command
 from maxapi.types.updates.message_created import MessageCreated
-from sqlalchemy import delete, select
+from sqlalchemy import select
 
 from bot.config import settings
 from bot.database import Conversation, ModelUsage, User, get_session
@@ -254,35 +254,16 @@ def _first_image_url(event: MessageCreated) -> str | None:
 @dp.message_created(Command("clear"))
 @authorized_only
 async def clear_context(event: MessageCreated) -> None:
-    """Clear conversation context for the user."""
+    """Start a fresh conversation for the user."""
     user_id = event_user_id(event)
 
-    # Clear from context manager
-    await ConversationContext(user_id, "", 0).clear()
-
-    # Clear from database (keep last 10 for history)
-    async with get_session() as session:
-        result = await session.execute(
-            select(Conversation.id)
-            .where(Conversation.user_id == user_id)
-            .order_by(Conversation.created_at.desc())
-            .offset(10)  # Keep last 10 messages
-        )
-        old_ids = [row[0] for row in result]
-
-        if old_ids:
-            await session.execute(
-                delete(Conversation).where(Conversation.id.in_(old_ids))
-            )
-            await session.commit()
+    await ConversationContext(user_id, "").reset()
 
     await answer(
         event,
         "🧹 Conversation context cleared!\n"
         "You can start a fresh conversation now."
     )
-
-    logger.info("User cleared context", user_id=user_id)
 
 
 @dp.message_created(Command("regenerate"))
@@ -300,7 +281,7 @@ async def regenerate_response(event: MessageCreated) -> None:
                 (Conversation.user_id == user_id) &
                 (Conversation.message_role == "user")
             )
-            .order_by(Conversation.created_at.desc())
+            .order_by(Conversation.id.desc())
             .limit(1)
         )
         last_user_msg = result.scalar_one_or_none()
@@ -326,9 +307,9 @@ async def regenerate_response(event: MessageCreated) -> None:
             .where(
                 (Conversation.user_id == user_id) &
                 (Conversation.message_role == "assistant") &
-                (Conversation.created_at > last_user_msg.created_at)
+                (Conversation.id > last_user_msg.id)
             )
-            .order_by(Conversation.created_at.desc())
+            .order_by(Conversation.id.desc())
             .limit(1)
         )
         last_assistant_msg = result.scalar_one_or_none()
@@ -356,7 +337,7 @@ async def show_history(event: MessageCreated) -> None:
         result = await session.execute(
             select(Conversation)
             .where(Conversation.user_id == user_id)
-            .order_by(Conversation.created_at.desc())
+            .order_by(Conversation.id.desc())
             .limit(10)
         )
         messages = result.scalars().all()

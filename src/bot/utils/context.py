@@ -5,9 +5,12 @@ from typing import Any
 import structlog
 from sqlalchemy import select
 
-from bot.database import Conversation, get_session
+from bot.database import Conversation, Setting, get_session
 
 logger = structlog.get_logger()
+
+# Key prefix for the per-user "context starts after this message" marker.
+RESET_MARKER_PREFIX = "context_reset:"
 
 
 class ConversationContext:
@@ -22,6 +25,22 @@ class ConversationContext:
         self.model_name = model_name
         self.max_length = max_length
 
+    @property
+    def _marker_key(self) -> str:
+        return f"{RESET_MARKER_PREFIX}{self.user_id}"
+
+    async def _reset_after_id(self, session) -> int:
+        """Id of the last message hidden by the most recent reset."""
+        raw = await session.scalar(
+            select(Setting.value).where(Setting.key == self._marker_key)
+        )
+        try:
+            return int(raw) if raw is not None else 0
+        except ValueError:
+            # A malformed marker must not wipe out the whole conversation.
+            logger.warning("Bad context reset marker", user_id=self.user_id, value=raw)
+            return 0
+
     async def get_context(self, message_limit: int = 10) -> list[dict[str, str]]:
         """Get conversation context for the user."""
         # Check in-memory cache first
@@ -29,17 +48,24 @@ class ConversationContext:
             messages = list(self._contexts[self.user_id])
             return messages[-message_limit:] if len(messages) > message_limit else messages
 
-        # Load from database
+        # Load from database. Order by id, not created_at: SQLite fills
+        # created_at from CURRENT_TIMESTAMP with one-second granularity, so
+        # messages sent within the same second tie and come back in an
+        # arbitrary order.
         async with get_session() as session:
+            reset_after_id = await self._reset_after_id(session)
             result = await session.execute(
                 select(Conversation)
-                .where(Conversation.user_id == self.user_id)
-                .order_by(Conversation.created_at.desc())
+                .where(
+                    (Conversation.user_id == self.user_id)
+                    & (Conversation.id > reset_after_id)
+                )
+                .order_by(Conversation.id.desc())
                 .limit(message_limit)
             )
             db_messages = result.scalars().all()
 
-        # Convert to message format and reverse for chronological order
+        # Newest-first from the query, so reverse for chronological order
         messages = []
         for msg in reversed(db_messages):
             messages.append({
@@ -80,11 +106,37 @@ class ConversationContext:
 
         return list(context_buffer)
 
-    async def clear(self) -> None:
-        """Clear the conversation context."""
-        if self.user_id in self._contexts:
-            del self._contexts[self.user_id]
-        logger.info("Context cleared", user_id=self.user_id)
+    async def reset(self) -> None:
+        """Start a fresh conversation for the user.
+
+        Records the last stored message as the new starting point instead of
+        deleting rows, so ``/history`` still works while the model no longer
+        sees anything from before the reset.
+        """
+        async with get_session() as session:
+            last_id = await session.scalar(
+                select(Conversation.id)
+                .where(Conversation.user_id == self.user_id)
+                .order_by(Conversation.id.desc())
+                .limit(1)
+            )
+
+            marker = await session.scalar(
+                select(Setting).where(Setting.key == self._marker_key)
+            )
+            if marker:
+                marker.value = str(last_id or 0)
+            else:
+                session.add(Setting(key=self._marker_key, value=str(last_id or 0)))
+            await session.commit()
+
+        self.forget(self.user_id)
+        logger.info("Context reset", user_id=self.user_id, reset_after_id=last_id or 0)
+
+    @classmethod
+    def forget(cls, user_id: int) -> None:
+        """Drop only the in-memory copy, keeping the stored history intact."""
+        cls._contexts.pop(user_id, None)
 
     @classmethod
     def clear_all(cls) -> None:
