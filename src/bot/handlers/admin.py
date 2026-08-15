@@ -1,4 +1,5 @@
 """Admin command handlers."""
+import asyncio
 from datetime import datetime, timedelta
 from html import escape
 
@@ -17,6 +18,35 @@ from bot.utils.events import answer, answer_html, event_user_id
 from bot.utils.runtime_settings import TEST_MODE_KEY, set_flag
 
 logger = structlog.get_logger()
+
+# Broadcasting to every user at full speed hits the messenger's rate limits and
+# hogs the event loop, so each send is spaced out and retried once.
+BROADCAST_DELAY = 0.05
+BROADCAST_RETRIES = 2
+BROADCAST_RETRY_DELAY = 1.0
+
+
+async def _send_broadcast(user_id: int, text: str) -> bool:
+    """Send one broadcast message, retrying once on a transient failure."""
+    for attempt in range(1, BROADCAST_RETRIES + 1):
+        try:
+            await bot.send_message(
+                user_id=user_id,
+                text=text,
+                format=ParseMode.HTML,
+            )
+            return True
+        except Exception as err:
+            if attempt < BROADCAST_RETRIES:
+                await asyncio.sleep(BROADCAST_RETRY_DELAY)
+                continue
+            logger.warning(
+                "Failed to send broadcast",
+                user_id=user_id,
+                attempts=attempt,
+                error=str(err),
+            )
+    return False
 
 
 @dp.message_created(Command("add_user"))
@@ -311,19 +341,19 @@ async def broadcast(event: MessageCreated, args: list[str] | None = None) -> Non
     success = 0
     failed = 0
 
-    broadcast_msg = f"📢 <b>Admin Broadcast:</b>\n\n{message}"
+    broadcast_msg = f"📢 <b>Admin Broadcast:</b>\n\n{escape(message)}"
+
+    await answer(event, f"📤 Отправляю {len(user_ids)} пользователям...")
 
     for user_id in user_ids:
-        try:
-            await bot.send_message(
-                user_id=user_id,
-                text=broadcast_msg,
-                format=ParseMode.HTML,
-            )
+        if await _send_broadcast(user_id, broadcast_msg):
             success += 1
-        except Exception as e:
+        else:
             failed += 1
-            logger.warning(f"Failed to send broadcast to {user_id}", error=str(e))
+
+        # Pace the run: sending as fast as the loop allows runs into the
+        # messenger's rate limits and starves other handlers.
+        await asyncio.sleep(BROADCAST_DELAY)
 
     await answer(
         event,

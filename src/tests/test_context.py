@@ -107,3 +107,38 @@ async def test_admin_clearing_history_drops_cached_context(db):
     ConversationContext.forget(1)
 
     assert await ConversationContext(1, "m").get_context() == []
+
+
+@pytest.mark.asyncio
+async def test_cache_is_bounded_and_evicts_least_recently_used(db, monkeypatch):
+    """Memory stays flat no matter how many users ever wrote to the bot."""
+    from bot.utils import context as context_module
+
+    monkeypatch.setattr(context_module, "MAX_CACHED_CONTEXTS", 3)
+
+    for user_id in range(1, 5):
+        await add_messages(db, user_id, ("user", f"привет от {user_id}"))
+        await ConversationContext(user_id, "m").get_context()
+
+    cached = list(ConversationContext._contexts)
+    assert len(cached) == 3
+    assert 1 not in cached, "самый давний пользователь должен быть вытеснен"
+    assert cached[-1] == 4
+
+
+@pytest.mark.asyncio
+async def test_evicted_context_is_rebuilt_from_database(db, monkeypatch):
+    """Eviction loses nothing: the next message reloads the history."""
+    from bot.utils import context as context_module
+
+    monkeypatch.setattr(context_module, "MAX_CACHED_CONTEXTS", 1)
+
+    await add_messages(db, 1, ("user", "мой вопрос"))
+    await ConversationContext(1, "m").get_context()
+
+    await add_messages(db, 2, ("user", "чужой"))
+    await ConversationContext(2, "m").get_context()   # вытесняет пользователя 1
+
+    assert 1 not in ConversationContext._contexts
+    restored = await ConversationContext(1, "m").get_context()
+    assert [m["content"] for m in restored] == ["мой вопрос"]
