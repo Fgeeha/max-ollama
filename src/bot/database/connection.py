@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from bot.config import settings
-from bot.database.models import Base
+from bot.database.migrate import run_migrations
 
 logger = structlog.get_logger()
 
@@ -19,18 +19,20 @@ async_session_factory = None
 
 
 
+def to_async_url(db_url: str) -> str:
+    """Convert a plain database URL to its async driver equivalent."""
+    if db_url.startswith("sqlite:///"):
+        return db_url.replace("sqlite:///", "sqlite+aiosqlite:///")
+    if db_url.startswith("postgresql://"):
+        return db_url.replace("postgresql://", "postgresql+asyncpg://")
+    return db_url
+
+
 async def init_database() -> None:
     """Initialize database connection and create tables."""
     global engine, async_session_factory
 
-    # Convert sync SQLite URL to async if needed
-    db_url = settings.DATABASE_URL
-
-    if db_url.startswith("sqlite:///"):
-        db_url = db_url.replace("sqlite:///", "sqlite+aiosqlite:///")
-    elif db_url.startswith("postgresql://"):
-        db_url = db_url.replace("postgresql://", "postgresql+asyncpg://")
-
+    db_url = to_async_url(settings.DATABASE_URL)
 
     engine = create_async_engine(
         db_url,
@@ -44,8 +46,7 @@ async def init_database() -> None:
         engine, class_=AsyncSession, expire_on_commit=False
     )
 
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    await run_migrations(engine)
 
     logger.info("Database initialized", url=db_url.split("@")[0])
 
@@ -74,9 +75,3 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
             raise
         finally:
             await session.close()
-
-
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    """Dependency for getting database session."""
-    async with get_session() as session:
-        yield session

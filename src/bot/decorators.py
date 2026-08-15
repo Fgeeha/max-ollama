@@ -149,34 +149,3 @@ def rate_limited(func: Callable) -> Callable:
         return await func(event, *args, **kwargs)
 
     return wrapper
-
-
-def log_command(func: Callable) -> Callable:
-    """Decorator to log command usage."""
-    @functools.wraps(func)
-    async def wrapper(event: AnyEvent, *args, **kwargs):
-        user_id = event_user_id(event)
-        command = event_text(event) or "callback"
-
-        logger.info(
-            "Command executed",
-            user_id=user_id,
-            command=command,
-            function=func.__name__
-        )
-
-        try:
-            result = await func(event, *args, **kwargs)
-            logger.debug("Command completed successfully", function=func.__name__)
-            return result
-        except Exception as e:
-            logger.error(
-                "Command failed",
-                user_id=user_id,
-                command=command,
-                function=func.__name__,
-                error=str(e)
-            )
-            raise
-
-    return wrapper

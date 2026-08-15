@@ -28,6 +28,12 @@ test: ## Run tests with coverage
 
 check: lint test ## Run all checks
 
+migrate: ## Apply database migrations
+	uv run alembic upgrade head
+
+migration: ## Create a migration from model changes (make migration m="описание")
+	uv run alembic revision --autogenerate -m "$(m)"
+
 ##@ Docker
 
 build: ## Build Docker image
