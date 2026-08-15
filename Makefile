@@ -1,58 +1,68 @@
-.PHONY: help install dev lint format test check build run stop logs shell clean
+# Единая точка входа для операций проекта.
+# Зависимости ставятся только через uv — не pip и не poetry.
 
-PROJECT_NAME = max-ollama-bot
-DOCKER_IMAGE = $(PROJECT_NAME):latest
-DOCKER_CONTAINER = $(PROJECT_NAME)-container
+.DEFAULT_GOAL := help
 
-help: ## Show this help message
-	@awk 'BEGIN {FS = ":.*##"} /^[a-zA-Z_-]+:.*?##/ { printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) }' $(MAKEFILE_LIST)
+PROJECT_NAME := max-ollama-bot
+DOCKER_IMAGE := $(PROJECT_NAME):latest
 
-##@ Development
+.PHONY: help install run lint format test check migrate migration \
+        build up-local down-local logs shell \
+        clean
 
-install: ## Install dependencies with uv
+help: ## Показать список целей
+	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) \
+	  | awk 'BEGIN {FS = ":.*## "}; {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
+
+# --- Разработка ---------------------------------------------------------------
+
+install: ## Установить зависимости (uv sync)
 	uv sync
 
-dev: ## Run bot locally
+run: ## Запустить бота локально
 	uv run python -m bot.main
 
-lint: ## Run linting checks
+lint: ## Проверить код (ruff + mypy)
 	uv run ruff check src/
 	uv run mypy src/
 
-format: ## Format code
+format: ## Отформатировать код (black + ruff --fix)
 	uv run black src/
 	uv run ruff check --fix src/
 
-test: ## Run tests with coverage
+test: ## Прогнать тесты с покрытием
 	uv run pytest --cov=src/bot --cov-report=term-missing
 
-check: lint test ## Run all checks
+check: lint test ## Полная проверка перед коммитом
 
-migrate: ## Apply database migrations
+# --- База данных ----------------------------------------------------------------
+
+migrate: ## Применить миграции
 	uv run alembic upgrade head
 
-migration: ## Create a migration from model changes (make migration m="описание")
+migration: ## Создать ревизию: make migration m="описание"
+	@test -n "$(m)" || { echo "Укажите описание: make migration m=\"добавил users\""; exit 1; }
 	uv run alembic revision --autogenerate -m "$(m)"
 
-##@ Docker
+# --- Docker -----------------------------------------------------------------------
 
-build: ## Build Docker image
+build: ## Собрать Docker-образ
 	docker compose build
 
-run: ## Start the bot
+up-local: ## Поднять бота в Docker
 	docker compose up -d
 
-stop: ## Stop the bot
+down-local: ## Остановить бота
 	docker compose down
 
-logs: ## Follow container logs
+logs: ## Логи контейнера (follow)
 	docker compose logs -f bot
 
-shell: ## Open a shell in the container
+shell: ## Shell внутри контейнера
 	docker compose exec bot /bin/bash
 
-##@ Maintenance
+# --- Прочее -------------------------------------------------------------------------
 
-clean: ## Remove caches and build artifacts
-	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+clean: ## Удалить кэши и временные артефакты
+	find . -type d -name __pycache__ -prune -exec rm -rf {} +
 	rm -rf .pytest_cache .ruff_cache .mypy_cache htmlcov .coverage dist build

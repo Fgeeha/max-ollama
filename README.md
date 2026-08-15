@@ -122,7 +122,7 @@ docker compose logs -f bot
 
 ```bash
 make install   # uv sync
-make dev       # запуск бота
+make run       # запуск бота
 make test      # pytest с покрытием
 make lint      # ruff + mypy
 make migrate   # применить миграции
