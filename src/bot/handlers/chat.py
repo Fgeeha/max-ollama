@@ -20,6 +20,7 @@ from bot.runtime import bot, dp, ollama_client
 from bot.utils.context import ConversationContext, normalize_chat_messages
 from bot.utils.events import answer, answer_html, event_chat_id, event_user_id
 from bot.utils.ollama import OllamaModelNotFoundError, OllamaTimeoutError
+from bot.utils.text import MAX_MESSAGE_CHARS, split_message
 
 logger = structlog.get_logger()
 
@@ -136,6 +137,11 @@ async def _process_chat_interaction(
                 response_text += chunk["message"]["content"]
 
                 now = time.time()
+                # Once the answer outgrows a single message, stop live-editing:
+                # the final text is delivered as several messages below.
+                if len(response_text) > MAX_MESSAGE_CHARS:
+                    continue
+
                 if bot_message_id is None:
                     if len(response_text) > STREAM_FIRST_CHUNK_CHARS:
                         sended = await answer(event, response_text + "...")
@@ -153,8 +159,10 @@ async def _process_chat_interaction(
                             message_id=bot_message_id,
                             text=response_text + "...",
                         )
-                    except Exception:
-                        pass
+                    except Exception as err:
+                        # A failed intermediate edit is not fatal — the final
+                        # text is sent below — but it must not vanish silently.
+                        logger.warning("Streaming edit failed", error=str(err))
 
             if not chunk.get("done"):
                 continue
@@ -167,16 +175,9 @@ async def _process_chat_interaction(
                 await answer(event, "❌ Модель вернула пустой ответ. Попробуйте ещё раз.")
                 return
 
-            # Final update
-            if bot_message_id is not None:
-                try:
-                    await bot.edit_message(
-                        message_id=bot_message_id, text=response_text
-                    )
-                except Exception:
-                    pass
-            else:
-                await answer(event, response_text)
+            # Final delivery. Long answers exceed the messenger limit, so send
+            # them as a sequence of messages instead of losing the tail.
+            await _deliver(event, response_text, bot_message_id)
 
             # Save assistant response and usage stats
             async with get_session() as session:
@@ -254,6 +255,29 @@ def _sended_message_id(sended: Any) -> str | None:
     message = getattr(sended, "message", None)
     body = getattr(message, "body", None)
     return getattr(body, "mid", None)
+
+
+async def _deliver(
+    event: MessageCreated, text: str, placeholder_id: str | None
+) -> None:
+    """Send the finished answer, splitting it if it exceeds the message limit.
+
+    ``placeholder_id`` is the streaming message already on screen: its content
+    is replaced by the first piece, the rest follow as new messages.
+    """
+    pieces = split_message(text)
+
+    for index, piece in enumerate(pieces):
+        if index == 0 and placeholder_id is not None:
+            try:
+                await bot.edit_message(message_id=placeholder_id, text=piece)
+                continue
+            except Exception as err:
+                # Editing failed (rate limit, message gone) — fall back to a
+                # plain send so the user still gets the answer.
+                logger.warning("Final edit failed, sending instead", error=str(err))
+
+        await answer(event, piece)
 
 
 def _first_image_url(event: MessageCreated) -> str | None:
