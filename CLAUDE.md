@@ -1,3 +1,50 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project
+
+MAX-Ollama — an async bot for the [MAX](https://max.ru) messenger (built on `maxapi`) that proxies chat to a local Ollama server. Python 3.12, `uv`-managed, SQLAlchemy async ORM + Alembic, streamed responses via message edits. See `README.md` for the user-facing command list and `.env` configuration reference.
+
+## Commands
+
+| Task | Command |
+|---|---|
+| Install deps | `make install` (`uv sync`) |
+| Run locally | `make run` (`uv run python -m bot.main`) |
+| Lint | `make lint` (`ruff check src/` + `mypy src/`) |
+| Format | `make format` (`black src/` + `ruff check --fix src/`) |
+| Test | `make test` (`uv run pytest --cov=src/bot --cov-report=term-missing`) |
+| Single test | `uv run pytest src/tests/test_context.py::test_name -v` |
+| Full pre-commit check | `make check` (lint + test) |
+| New migration | `make migration m="description"` (alembic autogenerate) |
+| Apply migrations manually | `make migrate` (alembic upgrade head; normally automatic at startup) |
+| Docker | `make build`, `make up-local` / `make down-local`, `make logs`, `make shell` |
+
+CI (`.github/workflows/ci.yml`) runs `ruff check src/` and `pytest -q` with dummy `MAX_BOT_TOKEN`/`ADMIN_ID` env vars on push/PR to `Master`, then builds and pushes a Docker image to GHCR on `Master` and `v*` tags.
+
+pytest is configured with `pythonpath = ["src"]` (`pyproject.toml`), so tests import as `from bot...`, not `from src.bot...`; `asyncio_mode = "auto"` means async tests need no marker.
+
+## Architecture
+
+- **Shared runtime, no per-update context.** MAX handlers only receive the update object — there is no request-scoped context object to carry state through. `bot/runtime.py` holds module-level singletons (`bot`, `dp`, `ollama_client`) that handlers import directly. `Dispatcher(use_create_task=True)` processes updates concurrently; without it, one slow generation would block the whole polling loop.
+
+- **Handler registration order is dispatch priority.** MAX routes an update to the *first* handler that matches. `bot/handlers/__init__.py` imports submodules in a fixed order — commands, then image attachments, then the plain-text catch-all in `chat` — marked `# isort: skip_file` so an import sorter can't reorder it. A test pins this order; don't let it drift.
+
+- **Two event shapes, one interface.** MAX delivers `MessageCreated` and `MessageCallback` (button presses), which store the sender and reply target differently. `bot/utils/events.py` normalizes both behind `AnyEvent` / `event_user_id` / `answer` / `answer_html` so handlers and decorators don't special-case event type.
+
+- **Decorator stack for access control** (`bot/decorators.py`), applied in `bot/handlers/*`: `@admin_only`, `@authorized_only`, `@rate_limited`. Admin bypasses both authorization and rate limiting; order in the source matters, since the decorator closest to the function runs first.
+
+- **Streaming replies via message edits.** `OllamaClient.chat_stream` (`bot/utils/ollama.py`) streams tokens from Ollama; `chat.py` sends the first reply early (~50 chars) and appends via `bot.edit_message`, throttled to avoid MAX's edit rate limit. One in-flight generation per user is tracked in `chat.py`'s `_generating: dict[user_id, Task]` — a second message from the same user is rejected rather than interleaved, and `/stop` cancels the tracked task.
+
+- **Token-budgeted context, not character-budgeted.** `ConversationContext` (`bot/utils/context.py`) keeps an in-memory LRU cache (max 500 users, evicted oldest-first) backed by the `conversations` table as source of truth. Each turn drops the oldest messages until `estimate_messages_tokens(...)` fits `MAX_CONTEXT_TOKENS`, but never below the last 2 messages. `/clear` doesn't delete rows — it writes a marker (`settings` table, key `context_reset:<user_id>`) so `/history` still shows everything while the model only sees what's after the marker.
+
+- **Migrations run automatically at startup.** `bot/database/migrate.py` inspects the DB: if tables exist but there's no Alembic revision (a DB created by the old `Base.metadata.create_all` path), it stamps the baseline revision first, then always runs `alembic upgrade head`. `make migrate` / `make migration` are for authoring and applying revisions manually, not required for normal operation.
+
+- **`get_session()` (`bot/database/connection.py`) auto-commits/rolls back.** It commits on a clean exit from the `async with` block and rolls back on exception, so handlers should not call `session.commit()` themselves except to flush mid-block before further work in the same session.
+
+- **Tests hit a real SQLite DB, not mocks.** The `db` fixture (`src/tests/conftest.py`) points the real connection module at a temp-file SQLite DB via `monkeypatch` and runs actual migrations. An autouse `clean_context` fixture resets `ConversationContext`'s class-level cache between tests since it's shared process-wide state.
+
 # Ruflo — Claude Code Configuration
 
 ## Rules

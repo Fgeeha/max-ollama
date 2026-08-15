@@ -1,34 +1,33 @@
 # max-ollama
 
-> Multi-agent orchestration framework for agentic coding
+> Async bot for the MAX messenger, backed by a local Ollama server
 
 ## Project Overview
 
-A Claude Flow powered project
-
-**Tech Stack**: TypeScript, Node.js
-**Architecture**: Domain-Driven Design with bounded contexts
+**Tech Stack**: Python 3.12, `uv`, `maxapi`, SQLAlchemy (async) + Alembic, pydantic-settings
+**Architecture**: Handler-based dispatch on a shared `Bot`/`Dispatcher`/`OllamaClient` runtime — see `CLAUDE.md` for the full breakdown
 
 ## Quick Start
 
 ### Installation
 ```bash
-npm install
+uv sync
 ```
 
-### Build
+### Run
 ```bash
-npm run build
+uv run python -m bot.main
+```
+
+### Lint
+```bash
+uv run ruff check src/
+uv run mypy src/
 ```
 
 ### Test
 ```bash
-npm test
-```
-
-### Development
-```bash
-npm run dev
+uv run pytest --cov=src/bot --cov-report=term-missing
 ```
 
 ## Agent Coordination
@@ -159,8 +158,8 @@ Use MCP tools for coordination, then keep coding:
 
 ### File Organization
 - **NEVER** save to root folder
-- `/src` - Source code files
-- `/tests` - Test files
+- `src/bot` - Source code files
+- `src/tests` - Test files
 - `/docs` - Documentation
 - `/config` - Configuration files
 
@@ -169,7 +168,7 @@ Use MCP tools for coordination, then keep coding:
 - No hardcoded secrets
 - Input validation at boundaries
 - Typed interfaces for public APIs
-- TDD London School (mock-first) preferred
+- Tests run against a real temp-file SQLite database (see `src/tests/conftest.py`), not mocks
 
 ### Commit Messages
 ```
