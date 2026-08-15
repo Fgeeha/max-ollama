@@ -1,7 +1,8 @@
 """Database models for the bot."""
+from datetime import date as date_type
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Boolean, DateTime, Integer, String, Text
+from sqlalchemy import BigInteger, Boolean, Date, DateTime, Integer, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy.sql import func
 
@@ -90,9 +91,12 @@ class ModelUsage(Base):
     request_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     total_tokens: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     total_response_time_ms: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    date: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        server_default=func.now(),
+    # A calendar day, not a moment: usage is aggregated per day. Storing it in
+    # a DateTime column made the comparisons in /stats depend on SQLite's
+    # string comparison rules.
+    date: Mapped[date_type] = mapped_column(
+        Date,
+        server_default=func.current_date(),
         nullable=False,
         index=True
     )

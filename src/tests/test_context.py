@@ -90,3 +90,20 @@ async def test_new_messages_after_reset_are_visible(db):
 
     messages = await ConversationContext(1, "m").get_context()
     assert [m["content"] for m in messages] == ["новое"]
+
+
+@pytest.mark.asyncio
+async def test_admin_clearing_history_drops_cached_context(db):
+    """Deleted history must not keep reaching the model from the in-memory cache."""
+    from bot.database import Conversation
+
+    await add_messages(db, 1, ("user", "секрет"))
+    # Warm the cache the way a normal chat turn would.
+    assert await ConversationContext(1, "m").get_context()
+
+    async with db() as session:
+        await session.execute(Conversation.__table__.delete())
+        await session.commit()
+    ConversationContext.forget(1)
+
+    assert await ConversationContext(1, "m").get_context() == []

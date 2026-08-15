@@ -170,6 +170,10 @@ async def _process_chat_interaction(
             response_time_ms = chunk.get(
                 "response_time_ms", int((time.time() - start_time) * 1000)
             )
+            # Ollama reports token counts in the final chunk.
+            prompt_tokens = chunk.get("prompt_eval_count") or 0
+            completion_tokens = chunk.get("eval_count") or 0
+            total_tokens = prompt_tokens + completion_tokens
 
             if not response_text.strip():
                 await answer(event, "❌ Модель вернула пустой ответ. Попробуйте ещё раз.")
@@ -187,6 +191,7 @@ async def _process_chat_interaction(
                     message_role="assistant",
                     message_content=response_text,
                     response_time_ms=response_time_ms,
+                    tokens_used=total_tokens or None,
                 ))
 
                 # Update usage stats
@@ -204,12 +209,14 @@ async def _process_chat_interaction(
                 if usage:
                     usage.request_count += 1
                     usage.total_response_time_ms += response_time_ms
+                    usage.total_tokens += total_tokens
                 else:
                     session.add(ModelUsage(
                         user_id=user_id,
                         model_name=model_name,
                         request_count=1,
                         total_response_time_ms=response_time_ms,
+                        total_tokens=total_tokens,
                         date=today,
                     ))
 
@@ -224,6 +231,8 @@ async def _process_chat_interaction(
                 model=model_name,
                 response_time_ms=response_time_ms,
                 response_length=len(response_text),
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
             )
 
     except OllamaModelNotFoundError:

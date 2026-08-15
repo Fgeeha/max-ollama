@@ -12,5 +12,6 @@ from bot.handlers import common
 from bot.handlers import admin
 from bot.handlers import models
 from bot.handlers import chat
+from bot.handlers import errors
 
-__all__ = ["admin", "chat", "common", "models"]
+__all__ = ["admin", "chat", "common", "errors", "models"]

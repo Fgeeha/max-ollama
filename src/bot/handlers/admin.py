@@ -1,5 +1,6 @@
 """Admin command handlers."""
 from datetime import datetime, timedelta
+from html import escape
 
 import structlog
 from maxapi.enums.parse_mode import ParseMode
@@ -8,10 +9,12 @@ from maxapi.types.updates.message_created import MessageCreated
 from sqlalchemy import func, select
 
 from bot.config import settings
-from bot.database import Conversation, ModelUsage, Setting, User, get_session
+from bot.database import Conversation, ModelUsage, User, get_session
 from bot.decorators import admin_only
 from bot.runtime import bot, dp, ollama_client
+from bot.utils.context import ConversationContext
 from bot.utils.events import answer, answer_html, event_user_id
+from bot.utils.runtime_settings import TEST_MODE_KEY, set_flag
 
 logger = structlog.get_logger()
 
@@ -123,13 +126,13 @@ async def list_users(event: MessageCreated) -> None:
     for user in users:
         status = "✅" if user.is_active else "❌"
         admin_badge = "👑" if user.is_admin else ""
-        username = f"@{user.username}" if user.username else "No username"
+        username = f"@{escape(user.username)}" if user.username else "No username"
 
         message += (
             f"{status} <b>{user.user_id}</b> {admin_badge}\n"
-            f"   Name: {user.full_name}\n"
+            f"   Name: {escape(user.full_name)}\n"
             f"   Username: {username}\n"
-            f"   Model: {user.selected_model or 'default'}\n"
+            f"   Model: {escape(user.selected_model or 'default')}\n"
             f"   Added: {user.created_at.strftime('%Y-%m-%d %H:%M')}\n\n"
         )
 
@@ -157,22 +160,8 @@ async def toggle_test_mode(event: MessageCreated, args: list[str] | None = None)
 
     new_state = command == "on"
 
-    # Update in database
-    async with get_session() as session:
-        result = await session.execute(
-            select(Setting).where(Setting.key == "test_mode")
-        )
-        setting = result.scalar_one_or_none()
-
-        if setting:
-            setting.value = str(new_state)
-        else:
-            setting = Setting(key="test_mode", value=str(new_state))
-            session.add(setting)
-
-        await session.commit()
-
-    # Update runtime setting
+    # Persist first, then apply: a restart must keep the admin's choice.
+    await set_flag(TEST_MODE_KEY, new_state)
     settings.TEST_MODE = new_state
 
     status = "ON 🔒 (Admin only)" if new_state else "OFF 🔓 (All users)"
@@ -194,6 +183,7 @@ async def show_stats(event: MessageCreated) -> None:
 
         # Get conversation stats for last 24 hours
         yesterday = datetime.utcnow() - timedelta(days=1)
+        since_day = yesterday.date()
         conv_stats = await session.execute(
             select(
                 func.count(Conversation.id).label("total"),
@@ -207,9 +197,10 @@ async def show_stats(event: MessageCreated) -> None:
             select(
                 ModelUsage.model_name,
                 func.sum(ModelUsage.request_count).label("requests"),
+                func.sum(ModelUsage.total_tokens).label("tokens"),
                 func.avg(ModelUsage.total_response_time_ms / ModelUsage.request_count).label("avg_time")
             )
-            .where(ModelUsage.date >= yesterday)
+            .where(ModelUsage.date >= since_day)
             .group_by(ModelUsage.model_name)
             .order_by(func.sum(ModelUsage.request_count).desc())
         )
@@ -226,7 +217,10 @@ async def show_stats(event: MessageCreated) -> None:
         message += "<b>Model Usage:</b>\n"
         for model in model_data:
             avg_time = model.avg_time or 0
-            message += f"• {model.model_name}: {model.requests} requests (avg {avg_time:.0f}ms)\n"
+            line = f"• {model.model_name}: {model.requests} requests (avg {avg_time:.0f}ms)"
+            if model.tokens:
+                line += f", {model.tokens} tokens"
+            message += line + "\n"
 
     # Get Ollama status
     if await ollama_client.health_check():
@@ -258,6 +252,9 @@ async def clear_history(event: MessageCreated, args: list[str] | None = None) ->
             # Clear all history
             await session.execute(Conversation.__table__.delete())
             await session.commit()
+            # Deleted rows are still cached in memory and would keep reaching
+            # the model until a restart.
+            ConversationContext.clear_all()
             await answer(event, "✅ All conversation history has been cleared.")
             logger.info("All conversation history cleared", admin_id=event_user_id(event))
             return
@@ -272,6 +269,8 @@ async def clear_history(event: MessageCreated, args: list[str] | None = None) ->
             Conversation.__table__.delete().where(Conversation.user_id == user_id)
         )
         await session.commit()
+
+    ConversationContext.forget(user_id)
 
     if result.rowcount > 0:
         await answer(event, f"✅ Cleared {result.rowcount} messages for user {user_id}.")

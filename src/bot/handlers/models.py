@@ -76,8 +76,8 @@ async def list_models(event: MessageCreated) -> None:
 
         await answer_html(event, message, attachments=[keyboard.as_markup()])
 
-    except Exception as e:
-        logger.error("Failed to list models", error=str(e))
+    except Exception:
+        logger.exception("Failed to list models")
         await answer(event, "❌ Failed to retrieve model list. Please try again later.")
 
 
@@ -106,8 +106,8 @@ async def switch_model(event: MessageCreated, args: list[str] | None = None) -> 
                 f"Available models: {', '.join(available)}"
             )
             return
-    except Exception as e:
-        logger.error("Failed to validate model", error=str(e))
+    except Exception:
+        logger.exception("Failed to validate model")
         await answer(event, "❌ Failed to validate model. Please try again later.")
         return
 
@@ -234,8 +234,8 @@ async def model_info(event: MessageCreated, args: list[str] | None = None) -> No
 
         await answer_html(event, message)
 
-    except Exception as e:
-        logger.error("Failed to get model info", model=model_name, error=str(e))
+    except Exception:
+        logger.exception("Failed to get model info", model=model_name)
         await answer(
             event,
             f"❌ Failed to get information for model '{model_name}'.\n"

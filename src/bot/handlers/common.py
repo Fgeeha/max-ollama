@@ -1,4 +1,6 @@
 """Common command handlers."""
+from html import escape
+
 import structlog
 from maxapi.filters.command import Command, CommandStart
 from maxapi.types.updates.bot_started import BotStarted
@@ -81,7 +83,7 @@ async def start(event: MessageCreated) -> None:
         )
     elif db_user.is_active:
         message = (
-            f"👋 <b>Welcome back, {user.first_name}!</b>\n\n"
+            f"👋 <b>Welcome back, {escape(user.first_name)}!</b>\n\n"
             "I'm your AI assistant powered by Ollama.\n\n"
             "Quick Start:\n"
             "• Send me any message to chat\n"
@@ -92,7 +94,7 @@ async def start(event: MessageCreated) -> None:
         )
     else:
         message = (
-            f"👋 Hello, {user.first_name}!\n\n"
+            f"👋 Hello, {escape(user.first_name)}!\n\n"
             "This bot requires authorization to use.\n"
             f"Please contact the administrator with your User ID: <code>{user_id}</code>\n\n"
             "Once authorized, you'll be able to chat with AI models."

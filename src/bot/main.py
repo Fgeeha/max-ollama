@@ -11,6 +11,7 @@ from bot.database.connection import close_database, init_database
 from bot.runtime import bot, dp, ollama_client
 from bot.utils.health import start_health_server, stop_health_server
 from bot.utils.logging import setup_logging
+from bot.utils.runtime_settings import load_into_settings
 
 logger = structlog.get_logger()
 
@@ -27,6 +28,8 @@ class BotApplication:
 
         await init_database()
         logger.info("Database initialized")
+
+        await load_into_settings()
 
         await ollama_client.verify_connection()
         logger.info("Ollama client initialized", host=settings.OLLAMA_HOST)
