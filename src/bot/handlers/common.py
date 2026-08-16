@@ -33,7 +33,7 @@ async def start(event: MessageCreated) -> None:
         return
 
     user_id = user.user_id
-    is_admin = user_id == settings.ADMIN_ID
+    is_admin = user_id in settings.ADMIN_IDS
 
     # Add or update user in database
     async with get_session() as session:
@@ -110,7 +110,7 @@ async def help_command(event: MessageCreated) -> None:
         return
 
     user_id = user.user_id
-    is_admin = user_id == settings.ADMIN_ID
+    is_admin = user_id in settings.ADMIN_IDS
 
     # Check if user is authorized
     async with get_session() as session:

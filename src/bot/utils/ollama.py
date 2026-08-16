@@ -46,6 +46,7 @@ class OllamaClient:
         generation_timeout: int = 600,
         keep_alive: str | None = None,
         options: dict[str, Any] | None = None,
+        api_key: str | None = None,
     ):
         """Initialize Ollama client.
 
@@ -59,6 +60,8 @@ class OllamaClient:
                 request; avoids reloading it before every answer.
             options: Generation options passed through to Ollama
                 (temperature, num_ctx, ...).
+            api_key: Bearer token sent as Authorization header, for LiteLLM
+                or other Ollama-compatible endpoints that require auth.
         """
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
@@ -66,9 +69,11 @@ class OllamaClient:
         self.generation_timeout = generation_timeout
         self.keep_alive = keep_alive
         self.options = options or {}
+        headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
         self.client = httpx.AsyncClient(
             base_url=self.base_url,
             timeout=httpx.Timeout(timeout),
+            headers=headers,
         )
         self._available_models: list[dict[str, Any]] = []
         self._last_model_check = 0

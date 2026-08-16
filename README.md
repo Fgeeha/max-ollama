@@ -41,7 +41,7 @@
 
 ```bash
 git clone https://github.com/Fgeeha/max-ollama && cd max-ollama
-cp .env.example .env        # заполните MAX_BOT_TOKEN и ADMIN_ID
+cp .env.example .env        # заполните MAX_BOT_TOKEN и ADMIN_IDS
 uv sync
 uv run python -m bot.main
 ```
@@ -54,8 +54,8 @@ docker compose up -d
 docker compose logs -f bot
 ```
 
-Дальше напишите боту `/start`. Если `ADMIN_ID` ещё не известен — бот вернёт ваш
-идентификатор прямо в ответе, подставьте его в `.env` и перезапустите.
+Дальше напишите боту `/start`. Если свой id ещё не известен — бот вернёт его
+прямо в ответе, добавьте в `ADMIN_IDS` через запятую и перезапустите.
 
 > Ollama на хосте, а бот в контейнере? Укажите `OLLAMA_HOST=http://host.docker.internal:11434`,
 > на Linux — адрес docker-моста, например `http://172.17.0.1:11434`.
@@ -102,8 +102,13 @@ docker compose logs -f bot
 | Переменная | По умолчанию | Описание |
 |---|---|---|
 | `MAX_BOT_TOKEN` | — | Токен бота MAX |
-| `ADMIN_ID` | — | MAX user id администратора |
+| `ADMIN_IDS` | — | MAX user id администраторов через запятую (`123,456`) |
+| `BOT_MODE` | `polling` | Приём апдейтов: `polling` или `webhook` |
+| `WEBHOOK_URL` | — | Публичный HTTPS-адрес для MAX; обязателен при `BOT_MODE=webhook` |
+| `WEBHOOK_HOST` / `WEBHOOK_PORT` / `WEBHOOK_PATH` | `0.0.0.0` / `8081` / `/webhook` | Где слушает встроенный webhook-сервер |
+| `WEBHOOK_SECRET` | — | Секрет для проверки заголовка от MAX |
 | `OLLAMA_HOST` | `http://localhost:11434` | Адрес Ollama API |
+| `OLLAMA_API_KEY` | — | Bearer-токен для LiteLLM или другого Ollama-совместимого API с авторизацией |
 | `DEFAULT_MODEL` | `llama2` | Модель для пользователей без выбора |
 | `DATABASE_URL` | `sqlite:///data/bot.db` | SQLite или PostgreSQL |
 | `MAX_CONTEXT_TOKENS` | `3000` | Бюджет истории в токенах (оценка, см. ниже) |

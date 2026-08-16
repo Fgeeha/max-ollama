@@ -42,18 +42,33 @@ class BotApplication:
             logger.info("Health check server started", port=settings.HEALTH_CHECK_PORT)
 
     async def start(self) -> None:
-        """Start long polling. Returns when polling stops."""
-        logger.info("Starting bot...", test_mode=settings.TEST_MODE)
+        """Start receiving updates. Returns when the transport stops."""
+        logger.info("Starting bot...", mode=settings.BOT_MODE, test_mode=settings.TEST_MODE)
         if settings.TEST_MODE:
             logger.warning("Bot is running in TEST MODE - only admin can interact")
 
-        await dp.start_polling(bot)
+        if settings.BOT_MODE == "webhook":
+            assert settings.WEBHOOK_URL is not None  # enforced by Settings validation
+            await bot.subscribe_webhook(url=settings.WEBHOOK_URL, secret=settings.WEBHOOK_SECRET)
+            await dp.handle_webhook(
+                bot,
+                host=settings.WEBHOOK_HOST,
+                port=settings.WEBHOOK_PORT,
+                path=settings.WEBHOOK_PATH,
+                secret=settings.WEBHOOK_SECRET,
+            )
+        else:
+            await dp.start_polling(bot)
 
     async def stop(self) -> None:
         """Stop the bot gracefully."""
         logger.info("Stopping bot...")
 
-        await dp.stop_polling()
+        if settings.BOT_MODE == "webhook":
+            assert settings.WEBHOOK_URL is not None  # enforced by Settings validation
+            await bot.unsubscribe_webhook(url=settings.WEBHOOK_URL)
+        else:
+            await dp.stop_polling()
         await bot.close_session()
 
         if self.health_server:
@@ -80,7 +95,7 @@ async def main() -> None:
     logger.info(
         "Starting MAX Ollama Bot",
         version="1.0.0",
-        admin_id=settings.ADMIN_ID,
+        admin_ids=settings.ADMIN_IDS,
         test_mode=settings.TEST_MODE,
     )
 

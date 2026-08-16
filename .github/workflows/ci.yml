@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       MAX_BOT_TOKEN: test-token
-      ADMIN_ID: "1"
+      ADMIN_IDS: "1"
     steps:
       - uses: actions/checkout@v4
 

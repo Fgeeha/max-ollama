@@ -33,6 +33,7 @@ ollama_client = OllamaClient(
     generation_timeout=settings.OLLAMA_GENERATION_TIMEOUT,
     keep_alive=settings.OLLAMA_KEEP_ALIVE,
     options=_options,
+    api_key=settings.OLLAMA_API_KEY,
 )
 
 __all__ = ["bot", "dp", "ollama_client"]

@@ -20,7 +20,7 @@ def admin_only(func: Callable) -> Callable:
     async def wrapper(event: AnyEvent, *args, **kwargs):
         user_id = event_user_id(event)
 
-        if user_id != settings.ADMIN_ID:
+        if user_id not in settings.ADMIN_IDS:
             await answer(
                 event,
                 "❌ This command is restricted to administrators only."
@@ -44,7 +44,7 @@ def authorized_only(func: Callable) -> Callable:
         user_id = event_user_id(event)
 
         # Admin always has access
-        if user_id == settings.ADMIN_ID:
+        if user_id in settings.ADMIN_IDS:
             return await func(event, *args, **kwargs)
 
         # Check test mode
@@ -87,7 +87,7 @@ def rate_limited(func: Callable) -> Callable:
         user_id = event_user_id(event)
 
         # Admin bypasses rate limiting
-        if user_id == settings.ADMIN_ID:
+        if user_id in settings.ADMIN_IDS:
             return await func(event, *args, **kwargs)
 
         async with get_session() as session:

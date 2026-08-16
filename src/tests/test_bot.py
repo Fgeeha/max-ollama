@@ -14,7 +14,7 @@ def mock_settings():
     """Create mock settings for testing."""
     return Settings(
         MAX_BOT_TOKEN="test_token",
-        ADMIN_ID=123456789,
+        ADMIN_IDS=[123456789],
         OLLAMA_HOST="http://localhost:11434",
         DATABASE_URL="sqlite:///test.db",
         TEST_MODE=False,
@@ -190,7 +190,7 @@ class TestDecorators:
 
         event = make_message_event(999)  # Non-admin
 
-        with patch('bot.decorators.settings.ADMIN_ID', 123456789):
+        with patch('bot.decorators.settings.ADMIN_IDS', [123456789]):
             result = await admin_command(event)
 
             assert result is None
@@ -218,7 +218,7 @@ class TestDecorators:
 
         # Test with TEST_MODE enabled
         with patch('bot.decorators.settings.TEST_MODE', True), \
-             patch('bot.decorators.settings.ADMIN_ID', 123456789):
+             patch('bot.decorators.settings.ADMIN_IDS', [123456789]):
 
             result = await user_command(event)
             assert result is None
@@ -241,7 +241,7 @@ class TestDecorators:
         assert "args" in inspect.signature(admin_command).parameters
 
         event = make_message_event(123456789)
-        with patch('bot.decorators.settings.ADMIN_ID', 123456789):
+        with patch('bot.decorators.settings.ADMIN_IDS', [123456789]):
             assert await admin_command(event, args=["1", "2"]) == ["1", "2"]
 
 
