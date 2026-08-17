@@ -34,6 +34,7 @@ ollama_client = OllamaClient(
     keep_alive=settings.OLLAMA_KEEP_ALIVE,
     options=_options,
     api_key=settings.OLLAMA_API_KEY,
+    api_style=settings.OLLAMA_API_STYLE,
 )
 
 __all__ = ["bot", "dp", "ollama_client"]

@@ -109,6 +109,7 @@ docker compose logs -f bot
 | `WEBHOOK_SECRET` | — | Секрет для проверки заголовка от MAX |
 | `OLLAMA_HOST` | `http://localhost:11434` | Адрес Ollama API |
 | `OLLAMA_API_KEY` | — | Bearer-токен для LiteLLM или другого Ollama-совместимого API с авторизацией |
+| `OLLAMA_API_STYLE` | `ollama` | `ollama` (нативный `/api/*`) или `openai` (LiteLLM/прокси только с `/v1/*`) |
 | `DEFAULT_MODEL` | `llama2` | Модель для пользователей без выбора |
 | `DATABASE_URL` | `sqlite:///data/bot.db` | SQLite или PostgreSQL |
 | `MAX_CONTEXT_TOKENS` | `3000` | Бюджет истории в токенах (оценка, см. ниже) |
