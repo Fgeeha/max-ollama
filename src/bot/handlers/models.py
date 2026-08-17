@@ -54,10 +54,13 @@ async def list_models(event: MessageCreated) -> None:
             # Format size (unknown for OpenAI-style listings, e.g. LiteLLM - omit rather than fake it)
             size = model.get("size")
             size_suffix = f" ({size / (1024**3):.1f}GB)" if size else ""
+            vision_suffix = " 📷" if await ollama_client.supports_images(model_name) else ""
 
             # Add checkmark for current model
             is_current = model_name == current_model
-            display_name = f"{'✅ ' if is_current else ''}{model_name}{size_suffix}"
+            display_name = (
+                f"{'✅ ' if is_current else ''}{model_name}{size_suffix}{vision_suffix}"
+            )
 
             keyboard.row(
                 CallbackButton(
@@ -68,7 +71,8 @@ async def list_models(event: MessageCreated) -> None:
 
         message = (
             "🤖 <b>Available Models:</b>\n\n"
-            "Select a model to use for conversations:"
+            "Select a model to use for conversations:\n"
+            "<i>📷 — supports image input</i>"
         )
 
         if current_model:
