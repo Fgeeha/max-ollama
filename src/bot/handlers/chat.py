@@ -15,7 +15,7 @@ from sqlalchemy import select
 
 from bot.config import settings
 from bot.database import Conversation, ModelUsage, User, get_session
-from bot.decorators import authorized_only, rate_limited
+from bot.decorators import addressed_only, authorized_only, rate_limited
 from bot.runtime import bot, dp, ollama_client
 from bot.utils.context import ConversationContext, normalize_chat_messages
 from bot.utils.events import answer, answer_html, event_chat_id, event_user_id
@@ -537,6 +537,7 @@ async def stop_generation(event: MessageCreated) -> None:
 
 
 @dp.message_created(F.message.body.attachments)
+@addressed_only
 @authorized_only
 @rate_limited
 async def handle_photo(event: MessageCreated) -> None:
@@ -568,6 +569,7 @@ async def handle_photo(event: MessageCreated) -> None:
 
 
 @dp.message_created(F.message.body.text)
+@addressed_only
 @authorized_only
 @rate_limited
 async def handle_message(event: MessageCreated) -> None:

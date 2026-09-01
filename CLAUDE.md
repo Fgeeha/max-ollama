@@ -33,7 +33,7 @@ pytest is configured with `pythonpath = ["src"]` (`pyproject.toml`), so tests im
 
 - **Two event shapes, one interface.** MAX delivers `MessageCreated` and `MessageCallback` (button presses), which store the sender and reply target differently. `bot/utils/events.py` normalizes both behind `AnyEvent` / `event_user_id` / `answer` / `answer_html` so handlers and decorators don't special-case event type.
 
-- **Decorator stack for access control** (`bot/decorators.py`), applied in `bot/handlers/*`: `@admin_only`, `@authorized_only`, `@rate_limited`. Admin bypasses both authorization and rate limiting; order in the source matters, since the decorator closest to the function runs first.
+- **Decorator stack for access control** (`bot/decorators.py`), applied in `bot/handlers/*`: `@admin_only`, `@authorized_only`, `@addressed_only`, `@rate_limited`. Admin bypasses both authorization and rate limiting; order in the source matters, since the decorator closest to the function runs first. `@addressed_only` (on `chat.py`'s `handle_message`/`handle_photo`) silently drops group/channel messages that don't @-mention the bot or reply to one of its messages, using `bot.me` (set at startup) and `MessageBody.markup`/`Message.link`; private dialogs are unaffected.
 
 - **Streaming replies via message edits.** `OllamaClient.chat_stream` (`bot/utils/ollama.py`) streams tokens from Ollama; `chat.py` sends the first reply early (~50 chars) and appends via `bot.edit_message`, throttled to avoid MAX's edit rate limit. One in-flight generation per user is tracked in `chat.py`'s `_generating: dict[user_id, Task]` — a second message from the same user is rejected rather than interleaved, and `/stop` cancels the tracked task.
 

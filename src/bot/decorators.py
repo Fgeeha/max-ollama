@@ -8,10 +8,37 @@ from sqlalchemy import select
 
 from bot.config import settings
 from bot.database import RateLimit, User, get_session
-from bot.utils.events import AnyEvent, answer, answer_html, event_text, event_user_id
+from bot.utils.events import (
+    AnyEvent,
+    answer,
+    answer_html,
+    event_text,
+    event_user_id,
+    is_addressed_to_bot,
+    is_group_chat,
+)
 from bot.utils.time import utc_now
 
 logger = structlog.get_logger()
+
+
+def addressed_only(func: Callable) -> Callable:
+    """Silently ignore group/channel messages that don't target the bot.
+
+    Without an @-mention or a reply to one of its own messages, the bot
+    should not join in on chatter in a chat/channel it has been added to.
+    """
+    @functools.wraps(func)
+    async def wrapper(event: AnyEvent, *args, **kwargs):
+        from bot.runtime import bot
+
+        bot_user_id = bot.me.user_id if bot.me else None
+        if is_group_chat(event) and not is_addressed_to_bot(event, bot_user_id):
+            return None
+
+        return await func(event, *args, **kwargs)
+
+    return wrapper
 
 
 def admin_only(func: Callable) -> Callable:
